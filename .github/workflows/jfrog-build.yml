@@ -51,5 +51,5 @@ jobs:
         run: jf rt build-publish
 
       - name: Trigger Xray security scan (non-failing)
-        run: jf rt build-scan --fail=false
+        run: jf build-scan --fail=false
         continue-on-error: true
