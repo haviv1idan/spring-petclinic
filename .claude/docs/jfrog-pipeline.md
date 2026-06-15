@@ -62,7 +62,22 @@ Add these in Repository → Settings → Secrets and variables → Actions:
 
 ### Why Maven is Installed Separately
 
-JFrog CLI's `jf mvn` delegates to the `mvn` binary on PATH. `ubuntu-latest` ships Maven 3.6.x; this project requires 3.9.x. Maven 3.9.9 is downloaded from the official Apache archive and added to PATH before any Maven commands run.
+The workflow uses `jf mvn` — JFrog's wrapper around Maven. Under the hood, `jf mvn` just calls the regular `mvn` command, so it needs `mvn` to exist on the machine.
+
+The problem: `ubuntu-latest` (the GitHub Actions runner) ships with Maven 3.6, but this project requires Maven 3.9 (that's what the `./mvnw` wrapper downloads when you run it locally).
+
+You might wonder: why not just use `./mvnw`? Because `jf mvn` doesn't know about the Maven wrapper — it looks for the `mvn` binary on `PATH`, not `./mvnw`.
+
+So the install step downloads Maven 3.9.9 from the official Apache archive and puts it on `PATH` so that when `jf mvn` runs, it finds the right version.
+
+### Release vs Snapshot Repositories
+
+Maven automatically routes artifacts based on the version string in `pom.xml`:
+
+- Version ends in `-SNAPSHOT` (e.g., `4.0.0-SNAPSHOT`) → deploys to `petclinic-libs-snapshot-local`
+- Version has no `-SNAPSHOT` suffix (e.g., `4.0.0`) → deploys to `petclinic-libs-release-local`
+
+No pipeline changes are needed — `jf mvn-config` already has both repos configured. Changing the version in `pom.xml` is enough for Maven to pick the correct target.
 
 ### Why `mvn deploy` (Not `package` or `verify`)
 
