@@ -20,7 +20,7 @@ Before the pipeline can run, create the following in your JFrog instance.
 
 | Key | Type | Notes |
 |---|---|---|
-| `petclinic-maven-central` | Remote (Maven) | URL: `https://repo1.maven.org/maven2` — proxies Maven Central |
+| `maven-remote` | Remote (Maven) | URL: `https://repo1.maven.org/maven2` — proxies Maven Central |
 | `petclinic-libs-release-local` | Local (Maven) | Stores published release JARs |
 | `petclinic-libs-snapshot-local` | Local (Maven) | Stores published snapshot JARs |
 | `petclinic-virtual` | Virtual (Maven) | Aggregates all three above; default deployment: `petclinic-libs-release-local` |
