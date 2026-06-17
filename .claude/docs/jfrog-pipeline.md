@@ -36,11 +36,30 @@ Required permissions:
 - Deploy/write on `petclinic-libs-release-local` and `petclinic-libs-snapshot-local`
 - Publish Build Info
 
-### Xray Watches and Policies (Optional)
+### Xray Policy and Watch
 
-Security & Compliance → Xray → Watches → create a watch covering the repositories.
-Attach a Policy to define CVE severity thresholds.
-Without a policy, Xray indexes and reports but never blocks builds.
+Xray needs two things to produce scan results: a **Policy** (what to flag) and a **Watch** (what to monitor). Without both, Xray indexes artifacts but never generates violations or surfaces results in the scan step.
+
+**Policy** — defines the rules. It answers: "what counts as a problem?"
+- Create at: Administration → Xray → Policies → New Policy
+- Name: `petclinic-security-policy`, Type: `Security`
+- Add Rule:
+  - Rule Name: `flag-all-vulnerabilities`
+  - Min Severity: `Low` (catches Low, Medium, High, Critical)
+  - Action: `Generate Violation` — do NOT check "Fail Build" (that would override `--fail=false`)
+- Save Rule → Save Policy
+
+**Watch** — defines the scope. It answers: "what should the policy be applied to?"
+- Create at: Administration → Xray → Watches → New Watch
+- Name: `petclinic-watch`
+- Add Build: `spring-petclinic`
+- Assign Policy: `petclinic-security-policy`
+- Save
+
+**How they connect:** The Watch tells Xray which builds to monitor. The Policy tells Xray what to flag in those builds. When the pipeline publishes build-info and calls `jf build-scan`, Xray evaluates the build against the Policy via the Watch and returns the results.
+
+Without a Watch, `jf build-scan` returns: `"No Xray policy rule has been defined on this build"`.
+Without a Policy attached to the Watch, the Watch exists but produces no violations.
 
 ## GitHub Secrets
 
@@ -62,7 +81,22 @@ Add these in Repository → Settings → Secrets and variables → Actions:
 
 ### Why Maven is Installed Separately
 
-JFrog CLI's `jf mvn` delegates to the `mvn` binary on PATH. `ubuntu-latest` ships Maven 3.6.x; this project requires 3.9.x. Maven 3.9.9 is downloaded from the official Apache archive and added to PATH before any Maven commands run.
+The workflow uses `jf mvn` — JFrog's wrapper around Maven. Under the hood, `jf mvn` just calls the regular `mvn` command, so it needs `mvn` to exist on the machine.
+
+The problem: `ubuntu-latest` (the GitHub Actions runner) ships with Maven 3.6, but this project requires Maven 3.9 (that's what the `./mvnw` wrapper downloads when you run it locally).
+
+You might wonder: why not just use `./mvnw`? Because `jf mvn` doesn't know about the Maven wrapper — it looks for the `mvn` binary on `PATH`, not `./mvnw`.
+
+So the install step downloads Maven 3.9.9 from the official Apache archive and puts it on `PATH` so that when `jf mvn` runs, it finds the right version.
+
+### Release vs Snapshot Repositories
+
+Maven automatically routes artifacts based on the version string in `pom.xml`:
+
+- Version ends in `-SNAPSHOT` (e.g., `4.0.0-SNAPSHOT`) → deploys to `petclinic-libs-snapshot-local`
+- Version has no `-SNAPSHOT` suffix (e.g., `4.0.0`) → deploys to `petclinic-libs-release-local`
+
+No pipeline changes are needed — `jf mvn-config` already has both repos configured. Changing the version in `pom.xml` is enough for Maven to pick the correct target.
 
 ### Why `mvn deploy` (Not `package` or `verify`)
 
